@@ -1,0 +1,94 @@
+---
+title: "Using R to Create and Update Reports"
+description: |
+  This was presented at the AEA Conference in 2019, located in Minneapolis, MN, in the "Benefits of learning R: A guide to getting started individually and as an organization" session. 
+author:
+  - name: Dana Wanzer
+    affiliation: University of Wisconsin-Stout
+    url: http://danawanzer.com
+date: November 14, 2019
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+---
+
+```{r setup, include=FALSE}
+# This first code chunk (in grey) sets up the document. Here I set document preferences, load the packages I'm going to use, and import my data.
+knitr::opts_chunk$set(echo = FALSE) #set document preferences
+
+library(tidyverse) #load packages
+library(psych)
+library(apa)
+library(janitor)
+library(prettydoc)
+
+dat <- read.csv("FakeSurvey.csv") #import data
+# dat <- read.csv("FakeSurvey_AdditionalData.csv") %>% bind_rows(dat) #import second set of data and add to the original data
+```
+
+# Introduction
+The point of this document is to demonstrate how you can update your reports quickly and easily when you get new data. This R Markdown (Rmd) file was created to report the findings from a brief survey. However, (*dun dun dun!*) after I created the report, more data came in and my client asked me, "Hey Dana, can you update the report with this new data? That shouldn't take too long, *right*?"
+
+With other data analysis programs, it might have. I would have had to rerun the data analysis (hopefully I saved syntax!) and manually add my numbers back in. Maybe I did it all in Excel and have my figures auto update and have my figures linked to the Word document... but maybe those links broke, because they always inevitably do, or my analyses couldn't be performed in Excel. Creating reports in R solves all of that! 
+
+You can think of this as a combined Word document and syntax script. I write things up just like a Word document and do my analyses as normal, but then I combine the two. This way, if I need to make changes to the analyses, I don't have to switch programs or copy-paste/manually update results. I just import my new data, click "Knit" and Voila!
+
+## Information about this data
+
+This data is completely fictional data that I created for the purpose of this presentation. In it, I have `r nrow(dat)` participants, of which `r nrow(dat[which(dat$Gender == "F"), ])` are female and `r nrow(dat[which(dat$Gender == "M"), ])` are male.  
+
+# To what extent do people like R?
+
+```{r like R}
+# Find the mean of "To what extent do you dislike or like R?"
+average <- 
+  dat %>%
+  summarize(R_mean = mean(To.what.extent.do.you.dislike.or.like.R.))
+
+# Find the means by gender
+average_bygender <-
+  dat %>%
+  group_by(Gender) %>%
+  summarize(R_mean = mean(To.what.extent.do.you.dislike.or.like.R.))
+
+# T-test of gender differences on "To what extend do you dislike or like R?"
+gender_ttest <- t.test(dat$To.what.extent.do.you.dislike.or.like.R. ~ dat$Gender, var.equal = TRUE)
+```
+
+Participants were asked "To what extent do you dislike or like R?" and could respond on a 5-point rating scale from *strongly disagree* (1) to *strongly agree* (5). Overall, the average response was `r round(average[1,1], 1)`. Overall, the average response to whether participants liked R was `r average`. There were no significant differences in ratings between females (M = `r round(average_bygender[1,2], 2)`) and males (M = `r round(average_bygender[2,2], 2)`), `r apa(gender_ttest, format = "html")`.
+
+```{r like R graph, warning = FALSE}
+# Graph
+
+dat %>%
+  mutate(Like = factor(To.what.extent.do.you.dislike.or.like.R.)) %>%
+  ggplot(aes(Like)) +
+  geom_histogram(fill = "black", stat = "count") +
+  facet_wrap(~ Gender, labeller = labeller(Gender = c("F" = "Female", "M" = "Male")), nrow = 1) +
+  theme_classic() + 
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        strip.background = element_rect(fill = NA, colour = NA))  +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf) +
+  scale_x_discrete(breaks = c("1", "2", "3", "4", "5"),
+                   labels = c("SD", "D", "N", "A", "SA")) + 
+  ggtitle("Histogram of responses to 'To what extend do you dislike or like R?' by gender")
+```
+
+# Do participants use the Tidyverse packages?
+
+```{r Tidyverse}
+tidyverse <-
+  dat %>%
+  tabyl(Do.you.use.the.Tidyverse.packages.) %>%
+  adorn_pct_formatting()
+```
+
+Participants were asked if they used the Tidyverse set of packages. Overall, `r tidyverse[2,3]` participants responded that they had. 
+
+# Lessons Learned in Reporting in R
+
+1. This works great if you're doing the same report over and over. Rather than recreating the report, all you need to do is change the data source and knit the Rmd document.
+2. This works better if you are just presenting data rather than interpreting the data. This is because your interpretations may change with new data. For instance, what if adding my data resulted in a statistically significant t-test? I would have to revise the language of the report to reflect that new interpretation. Another option is to provide information on *how* to interpret statistics and results in the document (e.g., interpreting p-values) and allow the reader to come to conclusions themselves. 
+3. To have more customized formatting requires knowledge of CSS to change the stylesheet of the document. There are very few built-in themes in Rmd, and they're not that great. Another option is to export as a Word document and then apply your style sheet there. That will take more time than exporting as a PDF or HTML document and sending off, but may be preferable in some situations.
